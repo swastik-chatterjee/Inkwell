@@ -1,0 +1,213 @@
+{{define "post_card"}}
+<article class="post-card">
+    <header class="post-card-header">
+        {{if .AuthorAvatarURL}}
+            <img class="avatar" src="{{.AuthorAvatarURL}}" alt="" width="44" height="44" loading="lazy">
+        {{else}}
+            <span class="avatar avatar-fallback" aria-hidden="true">{{initial .AuthorDisplayName}}</span>
+        {{end}}
+        <div class="post-card-byline">
+            <a class="author-name" href="/users/{{.AuthorUsername}}">{{.AuthorDisplayName}}</a>
+            <p class="post-meta">
+                <a href="/users/{{.AuthorUsername}}">@{{.AuthorUsername}}</a>
+                <span aria-hidden="true">·</span>
+                <time>{{humantime .CreatedAt}}</time>
+            </p>
+        </div>
+    </header>
+    <h2 class="post-card-title"><a href="/posts/{{.ID}}">{{.Title}}</a></h2>
+    <div class="post-body">{{.ContentHTML}}</div>
+    <footer class="post-card-footer">
+        <a class="post-stat" href="/posts/{{.ID}}">{{pluralize .CommentCount "comment"}}</a>
+        <a class="post-stat" href="/posts/{{.ID}}">{{pluralize .LikeCount "like"}}</a>
+        {{if .ViewerIsAuthor}}<a class="post-stat" href="/posts/{{.ID}}/edit">Edit</a>{{end}}
+    </footer>
+</article>
+{{end}}
+
+{{define "pagination"}}
+{{if or (.HasPrev) (.HasNext)}}
+<nav class="pagination" aria-label="Pagination">
+    {{if .HasPrev}}<a class="button" href="{{.Base}}page={{.PrevPage}}">← Newer</a>{{else}}<span class="button button-disabled" aria-disabled="true">← Newer</span>{{end}}
+    <span class="pagination-status">Page {{.Page}} of {{.Total}}</span>
+    {{if .HasNext}}<a class="button" href="{{.Base}}page={{.NextPage}}">Older →</a>{{else}}<span class="button button-disabled" aria-disabled="true">Older →</span>{{end}}
+</nav>
+{{end}}
+{{end}}
+
+{{define "page_home"}}
+<div class="page-head">
+    <h1>Recent posts</h1>
+    {{if .LoggedIn}}
+        <a class="button button-primary" href="/posts/new">Write a post</a>
+    {{else}}
+        <a class="button button-primary" href="/login">Sign in to write</a>
+    {{end}}
+</div>
+{{if .Posts}}
+    <div class="feed">
+        {{range .Posts}}{{template "post_card" .}}{{end}}
+    </div>
+    {{template "pagination" .Pagination}}
+{{else}}
+    <div class="empty-state">
+        <h2>Nothing here yet</h2>
+        <p>When somebody publishes a post, it will appear here — newest first.</p>
+    </div>
+{{end}}
+{{end}}
+
+{{define "page_login"}}
+<div class="login-box">
+    <h1>Sign in to Inkwell</h1>
+    <p>Inkwell signs you in with GitHub. We request read-only access to your public profile — your username, display name, and avatar. We never see your password and we never post on your behalf.</p>
+    <a class="button button-primary button-block" href="/auth/github">Continue with GitHub</a>
+    <p class="login-note">By signing in you agree to keep things civil. Harassment and abuse are filtered automatically before anything is published.</p>
+</div>
+{{end}}
+
+{{define "like_button"}}
+<form class="like-form" method="post" action="/posts/{{.ID}}/{{if .LikedByViewer}}unlike{{else}}like{{end}}">
+    <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+    <button type="submit" class="like-button{{if .LikedByViewer}} is-liked{{end}}"
+        data-post-id="{{.ID}}"
+        aria-pressed="{{if .LikedByViewer}}true{{else}}false{{end}}">
+        <span class="like-count">{{pluralize .LikeCount "like"}}</span>
+    </button>
+</form>
+{{end}}
+
+{{define "page_post"}}
+{{with .Post}}
+<article class="post-full">
+    <header class="post-full-header">
+        {{if .AuthorAvatarURL}}
+            <img class="avatar avatar-large" src="{{.AuthorAvatarURL}}" alt="" width="56" height="56">
+        {{else}}
+            <span class="avatar avatar-large avatar-fallback" aria-hidden="true">{{initial .AuthorDisplayName}}</span>
+        {{end}}
+        <div class="post-card-byline">
+            <a class="author-name" href="/users/{{.AuthorUsername}}">{{.AuthorDisplayName}}</a>
+            <p class="post-meta">
+                <a href="/users/{{.AuthorUsername}}">@{{.AuthorUsername}}</a>
+                <span aria-hidden="true">·</span>
+                <time>{{humantime .CreatedAt}}</time>
+            </p>
+        </div>
+    </header>
+    <h1 class="post-full-title">{{.Title}}</h1>
+    <div class="post-body">{{.ContentHTML}}</div>
+    <footer class="post-full-footer">
+        {{template "like_button" .}}
+        {{if .ViewerIsAuthor}}
+            <a class="button button-quiet" href="/posts/{{.ID}}/edit">Edit</a>
+            {{template "post_delete_form" $}}
+        {{end}}
+    </footer>
+</article>
+{{end}}
+{{template "comments" .}}
+{{end}}
+
+{{define "comments"}}
+<section class="comments" id="comments">
+    <h2>{{pluralize .Post.CommentCount "comment"}}</h2>
+    {{if .Comments}}
+        <ol class="comment-list">
+            {{range .Comments}}
+                <li class="comment" id="comment-{{.ID}}">
+                    <div class="comment-header">
+                        {{if .AuthorAvatarURL}}
+                            <img class="avatar avatar-small" src="{{.AuthorAvatarURL}}" alt="" width="32" height="32" loading="lazy">
+                        {{else}}
+                            <span class="avatar avatar-small avatar-fallback" aria-hidden="true">{{initial .AuthorDisplayName}}</span>
+                        {{end}}
+                        <div class="post-card-byline">
+                            <a class="author-name" href="/users/{{.AuthorUsername}}">{{.AuthorDisplayName}}</a>
+                            <p class="post-meta">
+                                <a href="/users/{{.AuthorUsername}}">@{{.AuthorUsername}}</a>
+                                <span aria-hidden="true">·</span>
+                                <time>{{humantime .CreatedAt}}</time>
+                            </p>
+                        </div>
+                        {{if .ViewerIsAuthor}}
+                            {{template "comment_delete_form" .}}
+                        {{end}}
+                    </div>
+                    <div class="post-body comment-body">{{.ContentHTML}}</div>
+                </li>
+            {{end}}
+        </ol>
+    {{else}}
+        <p class="muted">No comments yet.</p>
+    {{end}}
+    {{if .LoggedIn}}
+        {{template "comment_form" .}}
+    {{else}}
+        <p class="muted"><a href="/login">Sign in</a> to join the discussion.</p>
+    {{end}}
+</section>
+{{end}}
+
+{{define "page_profile"}}
+<header class="profile-head">
+    {{if .Profile.AvatarURL}}
+        <img class="avatar avatar-large" src="{{.Profile.AvatarURL}}" alt="" width="72" height="72">
+    {{else}}
+        <span class="avatar avatar-large avatar-fallback" aria-hidden="true">{{initial .Profile.DisplayName}}</span>
+    {{end}}
+    <div class="profile-info">
+        <h1>{{.Profile.DisplayName}}</h1>
+        <p class="post-meta">
+            <span>@{{.Profile.Username}}</span>
+            {{if .Profile.GitHubLogin}}<span aria-hidden="true">·</span><a href="https://github.com/{{.Profile.GitHubLogin}}" rel="me noopener">github.com/{{.Profile.GitHubLogin}}</a>{{end}}
+            <span aria-hidden="true">·</span>
+            <span>Joined {{humantime .Profile.CreatedAt}}</span>
+        </p>
+        {{if .Profile.BioHTML}}<div class="post-body profile-bio">{{.Profile.BioHTML}}</div>{{end}}
+    </div>
+    {{if .IsOwner}}<a class="button button-quiet" href="/settings/profile">Edit profile</a>{{end}}
+</header>
+<section class="profile-posts">
+    <h2>Posts</h2>
+    {{if .Posts}}
+        <div class="feed">
+            {{range .Posts}}{{template "post_card" .}}{{end}}
+        </div>
+        {{template "pagination" .Pagination}}
+    {{else}}
+        <p class="muted">{{if .IsOwner}}You haven't published anything yet. <a href="/posts/new">Write your first post.</a>{{else}}No posts yet.{{end}}</p>
+    {{end}}
+</section>
+{{end}}
+
+{{define "page_settings"}}
+<h1>Settings</h1>
+<section class="card settings-section">
+    <h2>Account</h2>
+    <dl class="account-info">
+        <dt>Username</dt><dd>@{{.User.Username}}</dd>
+        <dt>Display name</dt><dd>{{.User.DisplayName}}</dd>
+        <dt>GitHub</dt><dd>{{if .User.GitHubLogin}}<a href="https://github.com/{{.User.GitHubLogin}}" rel="me noopener">{{.User.GitHubLogin}}</a>{{else}}—{{end}}</dd>
+        <dt>Member since</dt><dd>{{humantime .User.CreatedAt}}</dd>
+    </dl>
+    <p>
+        <a class="button button-quiet" href="/users/{{.User.Username}}">View public profile</a>
+        <a class="button button-quiet" href="/settings/profile">Edit profile &amp; bio</a>
+    </p>
+</section>
+<section class="card settings-section settings-danger">
+    <h2>Delete account</h2>
+    <p>Deleting your account is permanent and immediate. Your profile, posts, comments, and likes are removed, you are signed out everywhere, and this cannot be undone.</p>
+    {{template "account_delete_form" .}}
+</section>
+{{end}}
+
+{{define "page_error"}}
+<div class="error-page">
+    <p class="error-status">{{.Status}}</p>
+    <h1>{{.Title}}</h1>
+    <p>{{.Message}}</p>
+    <p><a class="button" href="/">Back to the feed</a></p>
+</div>
+{{end}}

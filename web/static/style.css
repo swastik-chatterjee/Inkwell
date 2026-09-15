@@ -1,0 +1,1556 @@
+/* ============================================================================
+   Inkwell — stylesheet (hand-written, no framework)
+   ----------------------------------------------------------------------------
+   Design language: "paper & ink" — warm paper surfaces, ink-dark text, a
+   single vermillion accent, serif display type, and typographic ornaments.
+
+   Everything is driven by the tokens in §1. Dark mode follows the OS via
+   prefers-color-scheme. No external fonts, no images, no data URIs, no
+   inline styles — safe under the app's CSP (style-src 'self', img-src
+   'self' https:). Class names match the templates exactly; this file is a
+   drop-in replacement.
+   ============================================================================ */
+
+/* 1. Design tokens ========================================================= */
+
+:root {
+    color-scheme: light;
+
+    /* surfaces */
+    --bg: #f7f3ec;
+    --bg-glow: radial-gradient(110rem 55rem at 50% -14rem,
+        rgba(255, 253, 246, 0.9) 0%, rgba(255, 253, 246, 0) 60%);
+    --surface: #fffdf7;
+    --surface-2: #f1ebdf;
+    --surface-3: #e9e1d1;
+
+    /* ink */
+    --text: #23201a;
+    --text-muted: #6e675a;
+    --text-faint: #a49b8c;
+
+    /* hairlines */
+    --border: #e5ddcc;
+    --border-strong: #c9bfae;
+
+    /* accent (vermillion) */
+    --accent: #b0482a;
+    --accent-strong: #8e361d;
+    --accent-soft: #f6e4da;
+    --accent-ink: #fffdf9;
+    --accent-ring: rgba(176, 72, 42, 0.24);
+
+    /* semantic */
+    --danger: #b3241c;
+    --danger-strong: #8c1a14;
+    --danger-soft: #f9e7e3;
+    --success: #256b47;
+    --success-strong: #1c5638;
+    --success-soft: #e4f0e6;
+
+    /* code */
+    --code-bg: #f3eee2;
+    --code-text: #4a3e2f;
+
+    /* effects */
+    --shadow-sm: 0 1px 2px rgba(46, 38, 26, 0.06), 0 1px 6px rgba(46, 38, 26, 0.05);
+    --shadow-md: 0 2px 4px rgba(46, 38, 26, 0.05), 0 8px 20px rgba(46, 38, 26, 0.09);
+    --shadow-lg: 0 4px 10px rgba(46, 38, 26, 0.06), 0 20px 50px rgba(46, 38, 26, 0.14);
+
+    --radius-sm: 8px;
+    --radius: 12px;
+    --radius-lg: 16px;
+    --pill: 999px;
+
+    --ease: cubic-bezier(0.4, 0, 0.2, 1);
+    --speed: 180ms;
+
+    --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue",
+        Arial, "Noto Sans", sans-serif;
+    --font-serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua",
+        "URW Palladio L", Georgia, "Times New Roman", serif;
+    --font-mono: ui-monospace, "SF Mono", "Cascadia Code", "JetBrains Mono",
+        Menlo, Consolas, "DejaVu Sans Mono", monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+    :root {
+        color-scheme: dark;
+
+        --bg: #16130f;
+        --bg-glow: radial-gradient(110rem 55rem at 50% -14rem,
+            rgba(255, 205, 160, 0.05) 0%, rgba(255, 205, 160, 0) 60%);
+        --surface: #1e1a15;
+        --surface-2: #272219;
+        --surface-3: #312a20;
+
+        --text: #ece6da;
+        --text-muted: #a89f8f;
+        --text-faint: #7d7463;
+
+        --border: #2e2820;
+        --border-strong: #4b4131;
+
+        --accent: #e28152;
+        --accent-strong: #efa077;
+        --accent-soft: #38251a;
+        --accent-ink: #241203;
+        --accent-ring: rgba(226, 129, 82, 0.3);
+
+        --danger: #e0685c;
+        --danger-strong: #f28d82;
+        --danger-soft: #371f1b;
+        --success: #6cb890;
+        --success-strong: #8ecfa9;
+        --success-soft: #1d3226;
+
+        --code-bg: #241f18;
+        --code-text: #d9cfbd;
+
+        --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35);
+        --shadow-md: 0 2px 6px rgba(0, 0, 0, 0.35), 0 10px 24px rgba(0, 0, 0, 0.4);
+        --shadow-lg: 0 6px 16px rgba(0, 0, 0, 0.4), 0 24px 60px rgba(0, 0, 0, 0.5);
+    }
+}
+
+/* 2. Reset & base ========================================================== */
+
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+/* Protect the [hidden] toggling used by app.js from any display rule below. */
+[hidden] {
+    display: none !important;
+}
+
+html {
+    -webkit-text-size-adjust: 100%;
+    scroll-behavior: smooth;
+    /* Keep #comment-N anchors clear of the sticky header. */
+    scroll-padding-top: 5.5rem;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-strong) transparent;
+}
+
+body {
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    background-color: var(--bg);
+    background-image: var(--bg-glow);
+    background-repeat: no-repeat;
+    color: var(--text);
+    font-family: var(--font-sans);
+    font-size: clamp(1rem, 0.96rem + 0.2vw, 1.0625rem);
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    -webkit-tap-highlight-color: transparent;
+    accent-color: var(--accent);
+}
+
+main {
+    flex: 1 0 auto;
+    width: 100%;
+    padding-block: 1.9rem 3.5rem;
+}
+
+img {
+    max-width: 100%;
+    height: auto;
+}
+
+::selection {
+    background: var(--accent);
+    color: var(--accent-ink);
+}
+
+::placeholder {
+    color: var(--text-faint);
+    opacity: 1;
+}
+
+:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+}
+
+del {
+    color: var(--text-faint);
+}
+
+sub,
+sup {
+    font-size: 0.75em;
+    line-height: 0;
+}
+
+/* 3. Typography ============================================================ */
+
+h1,
+h2,
+h3,
+h4 {
+    font-family: var(--font-serif);
+    font-weight: 700;
+    line-height: 1.2;
+    letter-spacing: -0.01em;
+    text-wrap: balance;
+    overflow-wrap: break-word;
+    margin: 0 0 0.6rem;
+}
+
+h1 { font-size: 1.65rem; }
+h2 { font-size: 1.3rem; }
+h3 { font-size: 1.1rem; }
+
+a {
+    color: var(--accent);
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 0.18em;
+    transition: color var(--speed) var(--ease);
+}
+
+a:hover {
+    color: var(--accent-strong);
+}
+
+/* 4. Layout: container, header, nav, footer ================================ */
+
+.container {
+    width: 100%;
+    max-width: 46rem;
+    margin-inline: auto;
+    padding-inline: clamp(1.1rem, 4vw, 1.75rem);
+}
+
+.skip-link {
+    position: absolute;
+    left: -100vw;
+    top: 0;
+    z-index: 200;
+    background: var(--accent);
+    color: var(--accent-ink);
+    font-weight: 600;
+    padding: 0.6rem 1rem;
+    border-radius: 0 0 var(--radius-sm) 0;
+    text-decoration: none;
+}
+
+.skip-link:focus {
+    left: 0;
+}
+
+.site-header {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+}
+
+/* Frosted glass when supported; solid paper otherwise. */
+@supports ((backdrop-filter: blur(1px)) and (background: color-mix(in srgb, red, blue))) {
+    .site-header {
+        background: color-mix(in srgb, var(--bg) 74%, transparent);
+        -webkit-backdrop-filter: blur(14px) saturate(160%);
+        backdrop-filter: blur(14px) saturate(160%);
+    }
+}
+
+/* A thin ink stroke across the very top of the page. */
+.site-header::before {
+    content: "";
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 3px;
+    background: var(--accent);
+    background: linear-gradient(90deg,
+        var(--accent) 0%,
+        color-mix(in srgb, var(--accent) 45%, transparent) 55%,
+        transparent 100%);
+}
+
+.nav {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem 1.25rem;
+    padding-block: 0.85rem;
+}
+
+.brand {
+    font-family: var(--font-serif);
+    font-size: 1.4rem;
+    font-weight: 700;
+    letter-spacing: -0.015em;
+    color: var(--text);
+    text-decoration: none;
+    display: inline-flex;
+    align-items: baseline;
+    gap: 0.35rem;
+}
+
+.brand::before {
+    content: "❦";
+    color: var(--accent);
+    font-size: 0.85em;
+    display: inline-block;
+    transition: transform 400ms var(--ease);
+}
+
+.brand:hover {
+    color: var(--text);
+}
+
+.brand:hover::before {
+    transform: rotate(90deg);
+}
+
+.nav-links {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.2rem 0.3rem;
+    margin-left: auto;
+}
+
+.nav-links a {
+    color: var(--text-muted);
+    text-decoration: none;
+    font-size: 0.95rem;
+    font-weight: 500;
+    padding: 0.4rem 0.7rem;
+    border-radius: var(--pill);
+    transition: color var(--speed) var(--ease), background var(--speed) var(--ease);
+}
+
+.nav-links a:hover {
+    color: var(--accent-strong);
+    background: var(--accent-soft);
+}
+
+.inline-form {
+    display: inline;
+}
+
+/* Quiet text-buttons (log out, delete links). */
+.link-button {
+    font: inherit;
+    font-size: 0.95rem;
+    font-weight: 500;
+    background: none;
+    border: none;
+    padding: 0.4rem 0.7rem;
+    border-radius: var(--pill);
+    color: var(--text-muted);
+    text-decoration: none;
+    cursor: pointer;
+    transition: color var(--speed) var(--ease), background var(--speed) var(--ease);
+}
+
+.link-button:hover {
+    color: var(--accent-strong);
+    background: var(--accent-soft);
+}
+
+.link-danger {
+    color: var(--danger);
+}
+
+.link-danger:hover {
+    color: var(--danger-strong);
+    background: var(--danger-soft);
+}
+
+.site-footer {
+    margin-top: 4rem;
+    padding-block: 1.6rem;
+    border-top: 1px solid var(--border);
+    color: var(--text-faint);
+    font-size: 0.85rem;
+    text-align: center;
+}
+
+.site-footer::before {
+    content: "❦";
+    display: block;
+    color: var(--text-faint);
+    margin-block-end: 0.7rem;
+}
+
+.site-footer p {
+    margin: 0;
+}
+
+.site-footer a {
+    color: var(--text-muted);
+}
+
+/* 5. Flash messages ======================================================== */
+
+.flash {
+    margin-block: 1.25rem;
+    padding: 0.8rem 1.1rem;
+    border-radius: var(--radius);
+    font-weight: 600;
+    animation: flash-in 260ms var(--ease) both;
+}
+
+.flash-success {
+    color: var(--success-strong);
+    background: var(--success-soft);
+    border: 1px solid;
+    border-color: color-mix(in srgb, var(--success) 35%, transparent);
+}
+
+.flash-success::before {
+    content: "✓  ";
+}
+
+.flash-error {
+    color: var(--danger-strong);
+    background: var(--danger-soft);
+    border: 1px solid;
+    border-color: color-mix(in srgb, var(--danger) 35%, transparent);
+}
+
+.flash-error::before {
+    content: "✕  ";
+}
+
+/* 6. Page headings & feed ================================================== */
+
+.page-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.9rem 1.25rem;
+    margin-block: 1.6rem 1.2rem;
+}
+
+.page-head h1 {
+    margin: 0;
+    font-size: clamp(1.6rem, 1.2rem + 1.5vw, 2.1rem);
+    letter-spacing: -0.02em;
+}
+
+.feed {
+    display: grid;
+    gap: 1.3rem;
+}
+
+/* 7. Post cards ============================================================ */
+
+.post-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    padding: clamp(1.15rem, 3vw, 1.6rem);
+    transition: transform 200ms var(--ease), box-shadow 200ms var(--ease),
+        border-color 200ms var(--ease);
+    animation: rise-in 280ms var(--ease) both;
+}
+
+.feed > .post-card:nth-child(2) { animation-delay: 60ms; }
+.feed > .post-card:nth-child(3) { animation-delay: 110ms; }
+.feed > .post-card:nth-child(4) { animation-delay: 150ms; }
+.feed > .post-card:nth-child(5) { animation-delay: 180ms; }
+.feed > .post-card:nth-child(6) { animation-delay: 200ms; }
+
+.post-card:hover {
+    transform: translateY(-2px);
+    border-color: color-mix(in srgb, var(--accent) 30%, var(--border));
+    box-shadow: var(--shadow-md);
+}
+
+.post-card-header {
+    display: flex;
+    align-items: center;
+    gap: 0.9rem;
+    margin-block-end: 0.75rem;
+}
+
+.post-card .avatar,
+.post-card .avatar-fallback {
+    box-shadow: 0 0 0 2px var(--surface), 0 0 0 3px var(--border);
+}
+
+.post-card-byline {
+    min-width: 0;
+}
+
+.author-name {
+    font-weight: 700;
+    font-size: 0.98rem;
+    color: var(--text);
+    text-decoration: none;
+}
+
+.author-name:hover {
+    color: var(--accent-strong);
+}
+
+.post-meta {
+    margin: 0.1rem 0 0;
+    font-size: 0.84rem;
+    color: var(--text-muted);
+}
+
+.post-meta a {
+    color: var(--text-muted);
+    text-decoration: none;
+}
+
+.post-meta a:hover {
+    color: var(--accent-strong);
+}
+
+.post-card-title {
+    font-size: clamp(1.3rem, 1.1rem + 1vw, 1.65rem);
+    margin: 0.1rem 0 0.6rem;
+}
+
+.post-card-title a {
+    color: var(--text);
+    text-decoration: none;
+    /* Animated underline, drawn on hover. */
+    background-image: linear-gradient(var(--accent), var(--accent));
+    background-repeat: no-repeat;
+    background-position: 0 100%;
+    background-size: 0% 2px;
+    padding-block-end: 2px;
+    transition: background-size 260ms var(--ease), color 200ms var(--ease);
+}
+
+.post-card-title a:hover {
+    color: var(--accent-strong);
+    background-size: 100% 2px;
+}
+
+.post-card-footer {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.4rem;
+    margin-block-start: 1rem;
+    padding-block-start: 0.9rem;
+    border-top: 1px solid var(--border);
+}
+
+.post-stat {
+    display: inline-flex;
+    align-items: center;
+    font-size: 0.88rem;
+    font-weight: 500;
+    color: var(--text-muted);
+    text-decoration: none;
+    padding: 0.25rem 0.7rem;
+    border-radius: var(--pill);
+    border: 1px solid transparent;
+    transition: color var(--speed) var(--ease), background var(--speed) var(--ease),
+        border-color var(--speed) var(--ease);
+}
+
+.post-stat:hover {
+    color: var(--accent-strong);
+    background: var(--accent-soft);
+    border-color: color-mix(in srgb, var(--accent) 25%, var(--border));
+}
+
+/* 8. Avatars =============================================================== */
+
+.avatar {
+    border-radius: 50%;
+    object-fit: cover;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    flex: none;
+    width: 44px;
+    height: 44px;
+}
+
+.avatar-fallback {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    flex: none;
+    width: 44px;
+    height: 44px;
+    font-family: var(--font-serif);
+    font-weight: 700;
+    color: var(--accent-strong);
+    background: var(--accent-soft);
+    background: linear-gradient(135deg,
+        var(--accent-soft),
+        color-mix(in srgb, var(--accent) 30%, var(--surface-2)));
+    border: 1px solid color-mix(in srgb, var(--accent) 25%, transparent);
+}
+
+.avatar-large {
+    width: 64px;
+    height: 64px;
+}
+
+.avatar-small {
+    width: 32px;
+    height: 32px;
+}
+
+.comment .avatar-fallback {
+    font-size: 0.8rem;
+}
+
+/* 9. Post page (full) ====================================================== */
+
+.post-full {
+    position: relative;
+    overflow: hidden;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-md);
+    padding: clamp(1.5rem, 4vw, 2.5rem);
+    margin-block: 1.4rem;
+}
+
+.post-full::before,
+.profile-head::before {
+    content: "";
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 4px;
+    background: var(--accent);
+    background: linear-gradient(90deg,
+        var(--accent) 0%,
+        color-mix(in srgb, var(--accent) 40%, transparent) 60%,
+        transparent 100%);
+}
+
+.post-full-header {
+    display: flex;
+    align-items: center;
+    gap: 0.9rem;
+    margin-block-end: 1rem;
+}
+
+.post-full-title {
+    font-size: clamp(1.7rem, 1.2rem + 2vw, 2.35rem);
+    letter-spacing: -0.02em;
+    margin: 0.25rem 0 1.2rem;
+}
+
+.post-full-footer {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem;
+    margin-block-start: 1.5rem;
+    padding-block-start: 1.2rem;
+    border-top: 1px solid var(--border);
+}
+
+/* 10. Markdown body (the heart of the app) ================================= */
+
+.post-body {
+    font-size: 1.02rem;
+    line-height: 1.7;
+    overflow-wrap: break-word;
+}
+
+.post-body > * + * {
+    margin-block-start: 0.85em;
+}
+
+.post-body > *:first-child {
+    margin-block-start: 0;
+}
+
+.post-body > *:last-child {
+    margin-block-end: 0;
+}
+
+/* Drop cap — only on the full post page, only when it opens with a paragraph. */
+.post-full .post-body > p:first-child::first-letter {
+    float: left;
+    font-family: var(--font-serif);
+    font-weight: 700;
+    font-size: 3.3em;
+    line-height: 0.8;
+    padding: 0.06em 0.14em 0 0;
+    color: var(--accent);
+}
+
+.post-body h1,
+.post-body h2,
+.post-body h3,
+.post-body h4,
+.post-body h5,
+.post-body h6 {
+    margin-block-start: 1.5em;
+    line-height: 1.25;
+}
+
+.post-body h1 { font-size: 1.55rem; }
+.post-body h2 {
+    font-size: 1.3rem;
+    padding-block-end: 0.3em;
+    border-bottom: 1px solid var(--border);
+}
+.post-body h3 { font-size: 1.12rem; }
+.post-body h4,
+.post-body h5,
+.post-body h6 { font-size: 1rem; }
+
+.post-body a {
+    color: var(--accent);
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 0.2em;
+    border-radius: 3px;
+    transition: color var(--speed) var(--ease),
+        text-decoration-thickness var(--speed) var(--ease),
+        background var(--speed) var(--ease);
+}
+
+.post-body a:hover {
+    color: var(--accent-strong);
+    text-decoration-thickness: 2px;
+    background: var(--accent-soft);
+}
+
+.post-body code {
+    font-family: var(--font-mono);
+    font-size: 0.875em;
+    color: var(--code-text);
+    background: var(--code-bg);
+    border: 1px solid color-mix(in srgb, var(--border) 65%, transparent);
+    padding: 0.1em 0.4em;
+    border-radius: 6px;
+}
+
+.post-body pre {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-sm);
+    padding: 1rem 1.2rem;
+    overflow-x: auto;
+    font-size: 0.9rem;
+    line-height: 1.6;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-strong) transparent;
+}
+
+.post-body pre code {
+    background: none;
+    border: none;
+    padding: 0;
+    border-radius: 0;
+    font-size: inherit;
+    color: inherit;
+}
+
+/* Quotation with a hanging opening quote mark. */
+.post-body blockquote {
+    position: relative;
+    margin-block: 1.1em;
+    padding: 0.75em 1.2em 0.75em 3.3rem;
+    border-left: 3px solid var(--accent);
+    border-radius: 0 var(--radius) var(--radius) 0;
+    background: var(--surface-2);
+    color: var(--text-muted);
+}
+
+.post-body blockquote::before {
+    content: "“";
+    position: absolute;
+    top: 0.35rem;
+    left: 0.7rem;
+    font-family: var(--font-serif);
+    font-size: 2.4rem;
+    line-height: 1;
+    color: color-mix(in srgb, var(--accent) 55%, transparent);
+}
+
+.post-body blockquote p {
+    margin: 0;
+}
+
+.post-body ul,
+.post-body ol {
+    padding-left: 1.4rem;
+}
+
+.post-body li {
+    margin-block: 0.35em;
+}
+
+.post-body li::marker {
+    color: var(--accent);
+}
+
+/* Editorial em-dash bullets (falls back to discs). */
+.post-body ul {
+    list-style-type: disc;
+    list-style-type: "–  ";
+}
+
+.post-body table {
+    display: block;
+    overflow-x: auto;
+    border-collapse: collapse;
+    width: 100%;
+    margin-block: 1.1em;
+    font-size: 0.95rem;
+    scrollbar-width: thin;
+}
+
+.post-body th,
+.post-body td {
+    border: 1px solid var(--border);
+    padding: 0.5em 0.8em;
+    text-align: left;
+    vertical-align: top;
+}
+
+.post-body th {
+    background: var(--surface-2);
+    font-family: var(--font-sans);
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+}
+
+.post-body tbody tr:hover {
+    background: color-mix(in srgb, var(--accent-soft) 45%, transparent);
+}
+
+.post-body img {
+    display: block;
+    margin-inline: auto;
+    max-width: 100%;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow-md);
+}
+
+/* A typographic section break instead of a plain rule. */
+.post-body hr {
+    border: none;
+    height: auto;
+    text-align: center;
+    margin-block: 2.1em;
+}
+
+.post-body hr::after {
+    content: "❦";
+    color: color-mix(in srgb, var(--accent) 55%, var(--text-faint));
+    font-size: 1.05rem;
+}
+
+/* 11. Likes ================================================================ */
+
+.like-form {
+    display: inline-flex;
+}
+
+.like-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    font: inherit;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text);
+    background: var(--surface-2);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--pill);
+    padding: 0.45rem 1.05rem;
+    cursor: pointer;
+    transition: transform 150ms var(--ease), background var(--speed) var(--ease),
+        border-color var(--speed) var(--ease), color var(--speed) var(--ease),
+        box-shadow var(--speed) var(--ease);
+}
+
+.like-button::before {
+    content: "♡";
+    font-size: 1.05em;
+    line-height: 1;
+    color: var(--accent);
+}
+
+.like-button:hover {
+    border-color: var(--accent);
+    color: var(--accent-strong);
+    box-shadow: var(--shadow-sm);
+}
+
+.like-button:active {
+    transform: scale(0.94);
+}
+
+.like-button.is-liked {
+    background: var(--accent-soft);
+    border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+    color: var(--accent-strong);
+}
+
+.like-button.is-liked::before {
+    content: "♥";
+    animation: heart-pop 420ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.like-count {
+    font-variant-numeric: tabular-nums;
+}
+
+/* 12. Comments ============================================================= */
+
+.comments {
+    margin-block-start: 2.25rem;
+}
+
+.comments h2 {
+    font-size: 1.25rem;
+    margin-block-end: 1rem;
+}
+
+.comment-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 1rem;
+}
+
+.comment {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-sm);
+    padding: 0.95rem 1.15rem;
+    animation: rise-in 240ms var(--ease) both;
+}
+
+/* Landing on #comment-N after posting highlights the comment. */
+.comment:target {
+    animation: target-flash 1.6s var(--ease);
+}
+
+.comment-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.65rem;
+    margin-block-end: 0.45rem;
+}
+
+.comment-header .inline-form {
+    margin-left: auto;
+}
+
+.comment-body {
+    font-size: 0.97rem;
+}
+
+.comment-form {
+    margin-block-start: 1.25rem;
+}
+
+/* 13. Cards, forms, fields ================================================= */
+
+.card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    padding: clamp(1.25rem, 3.5vw, 1.75rem);
+    margin-block-end: 1.25rem;
+}
+
+.form .field {
+    margin-block-end: 1.15rem;
+}
+
+label {
+    display: block;
+    font-weight: 600;
+    font-size: 0.95rem;
+    margin-block-end: 0.4rem;
+}
+
+.label-soft {
+    font-weight: 400;
+    font-style: italic;
+    color: var(--text-muted);
+}
+
+input[type="text"],
+input[type="email"],
+input[type="password"],
+textarea {
+    width: 100%;
+    font: inherit;
+    font-size: 1rem;
+    color: var(--text);
+    background: var(--bg);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius);
+    padding: 0.65rem 0.85rem;
+    transition: border-color var(--speed) var(--ease),
+        box-shadow var(--speed) var(--ease);
+}
+
+input[type="text"]:hover,
+input[type="email"]:hover,
+input[type="password"]:hover,
+textarea:hover {
+    border-color: color-mix(in srgb, var(--accent) 35%, var(--border-strong));
+}
+
+input[type="text"]:focus,
+input[type="email"]:focus,
+input[type="password"]:focus,
+textarea:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 4px var(--accent-ring);
+}
+
+textarea {
+    resize: vertical;
+    min-height: 6rem;
+}
+
+/* Markdown editors feel like editors: monospace. */
+textarea[data-markdown-source] {
+    font-family: var(--font-mono);
+    font-size: 0.95rem;
+    line-height: 1.6;
+    tab-size: 4;
+}
+
+#confirm-delete {
+    font-family: var(--font-mono);
+    letter-spacing: 0.08em;
+}
+
+.field-hint {
+    margin-block-start: 0.35rem;
+    font-size: 0.82rem;
+    color: var(--text-faint);
+}
+
+.form-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.8rem;
+    margin-block-start: 0.5rem;
+}
+
+.form-error {
+    background: var(--danger-soft);
+    border: 1px solid color-mix(in srgb, var(--danger) 40%, transparent);
+    color: var(--danger-strong);
+    border-radius: var(--radius);
+    padding: 0.7rem 1rem;
+    margin: 0 0 1.05rem;
+    font-weight: 600;
+    font-size: 0.95rem;
+}
+
+.form-error::before {
+    content: "✕  ";
+}
+
+/* 14. Live preview ========================================================= */
+
+.preview {
+    border: 1.5px dashed color-mix(in srgb, var(--accent) 35%, var(--border-strong));
+    border-radius: var(--radius);
+    background: color-mix(in srgb, var(--surface-2) 55%, transparent);
+    padding: 1rem 1.25rem;
+    margin-block-end: 1.1rem;
+}
+
+.preview-heading {
+    font-size: 1rem;
+    margin: 0 0 0.4rem;
+    color: var(--accent-strong);
+    display: flex;
+    align-items: center;
+}
+
+/* A quiet "recording" dot — the preview is live. */
+.preview-heading::after {
+    content: "";
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--accent);
+    margin-left: auto;
+    animation: pulse-dot 2s var(--ease) infinite;
+}
+
+.preview-body {
+    font-size: 0.98rem;
+}
+
+/* 15. Buttons ============================================================== */
+
+.button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    font: inherit;
+    font-size: 0.95rem;
+    font-weight: 600;
+    line-height: 1;
+    padding: 0.65rem 1.2rem;
+    border-radius: var(--pill);
+    border: 1px solid var(--border-strong);
+    background: var(--surface);
+    color: var(--text);
+    text-decoration: none;
+    cursor: pointer;
+    box-shadow: var(--shadow-sm);
+    transition: transform 150ms var(--ease), box-shadow 200ms var(--ease),
+        background var(--speed) var(--ease), border-color var(--speed) var(--ease),
+        color var(--speed) var(--ease);
+}
+
+.button:hover {
+    border-color: var(--accent);
+    color: var(--accent-strong);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-md);
+}
+
+.button:active {
+    transform: translateY(0) scale(0.98);
+}
+
+.button-primary {
+    background: var(--accent);
+    border-color: var(--accent-strong);
+    color: var(--accent-ink);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25), 0 1px 3px rgba(0, 0, 0, 0.18);
+}
+
+.button-primary:hover {
+    background: var(--accent-strong);
+    border-color: var(--accent-strong);
+    color: var(--accent-ink);
+}
+
+.button-quiet {
+    background: transparent;
+    border-color: transparent;
+    box-shadow: none;
+    color: var(--accent);
+}
+
+.button-quiet:hover {
+    background: var(--accent-soft);
+    border-color: color-mix(in srgb, var(--accent) 25%, var(--border));
+    color: var(--accent-strong);
+    box-shadow: none;
+}
+
+.button-danger {
+    background: var(--danger);
+    border-color: var(--danger-strong);
+    color: var(--accent-ink);
+}
+
+.button-danger:hover {
+    background: var(--danger-strong);
+    border-color: var(--danger-strong);
+    color: var(--accent-ink);
+}
+
+.button-disabled {
+    opacity: 0.45;
+    pointer-events: none;
+    box-shadow: none;
+}
+
+.button-block {
+    display: flex;
+    width: 100%;
+}
+
+/* 16. Pagination =========================================================== */
+
+.pagination {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    margin-block: 2.2rem;
+}
+
+.pagination .button {
+    min-width: 6.5rem;
+}
+
+.pagination-status {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.04em;
+}
+
+/* 17. Profile ============================================================== */
+
+.profile-head {
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 1.25rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    padding: clamp(1.25rem, 3.5vw, 2rem);
+    margin-block: 1.5rem 2rem;
+}
+
+.profile-head .avatar,
+.profile-head .avatar-fallback {
+    width: 76px;
+    height: 76px;
+    box-shadow: 0 0 0 4px var(--surface), 0 0 0 6px color-mix(in srgb, var(--accent) 40%, transparent);
+}
+
+.profile-info {
+    flex: 1 1 16rem;
+    min-width: 0;
+}
+
+.profile-info h1 {
+    font-size: clamp(1.5rem, 1.2rem + 1vw, 1.9rem);
+    margin-block-end: 0.3rem;
+}
+
+.profile-bio {
+    margin-block-start: 0.9rem;
+}
+
+.profile-posts h2 {
+    margin-block: 1.25rem 0.9rem;
+}
+
+/* 18. Settings ============================================================== */
+
+.settings-section h2 {
+    margin-block-end: 0.9rem;
+}
+
+.settings-section p {
+    max-width: 38rem;
+}
+
+.settings-danger {
+    border-color: color-mix(in srgb, var(--danger) 45%, var(--border));
+    background: color-mix(in srgb, var(--danger-soft) 30%, var(--surface));
+}
+
+.settings-danger h2 {
+    color: var(--danger-strong);
+}
+
+.account-info {
+    display: grid;
+    grid-template-columns: minmax(9rem, auto) 1fr;
+    gap: 0.45rem 1.25rem;
+    margin: 0 0 1rem;
+}
+
+.account-info dt {
+    font-weight: 700;
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--text-muted);
+    padding-block-start: 0.2rem;
+}
+
+.account-info dd {
+    margin: 0;
+    overflow-wrap: anywhere;
+}
+
+.account-delete-form .button-danger {
+    margin-block-start: 0.4rem;
+}
+
+/* 19. Login, error, empty states =========================================== */
+
+.login-box {
+    position: relative;
+    max-width: 27rem;
+    margin: clamp(3rem, 10vh, 5.5rem) auto;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+    padding: clamp(1.8rem, 5vw, 2.5rem);
+}
+
+/* A fleuron badge breaking the top border. */
+.login-box::before {
+    content: "❦";
+    position: absolute;
+    top: -1.2rem;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 2.4rem;
+    height: 2.4rem;
+    display: grid;
+    place-items: center;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 50%;
+    color: var(--accent);
+    font-size: 1.05rem;
+}
+
+.login-box h1 {
+    text-align: center;
+    font-size: 1.6rem;
+    margin-block-end: 0.75rem;
+}
+
+.login-box .button-block {
+    margin-block-start: 1.1rem;
+}
+
+.login-note {
+    margin-block-start: 1.1rem;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+}
+
+.error-page {
+    text-align: center;
+    padding: clamp(3rem, 10vw, 6rem) 1rem;
+}
+
+.error-status {
+    font-family: var(--font-serif);
+    font-size: clamp(4.5rem, 16vw, 7rem);
+    font-weight: 700;
+    line-height: 1;
+    margin: 0 0 0.5rem;
+    color: var(--accent);
+}
+
+/* Gradient text where supported; solid accent otherwise. */
+@supports ((-webkit-background-clip: text) or (background-clip: text)) {
+    .error-status {
+        background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+    }
+}
+
+.error-page h1 {
+    margin-block-end: 0.5rem;
+}
+
+.error-page p {
+    color: var(--text-muted);
+}
+
+.empty-state {
+    text-align: center;
+    padding: 3.5rem 1.5rem;
+    border: 1.5px dashed var(--border-strong);
+    border-radius: var(--radius-lg);
+    background: color-mix(in srgb, var(--surface) 55%, transparent);
+    color: var(--text-muted);
+}
+
+.empty-state::before {
+    content: "❦";
+    display: block;
+    font-size: 1.5rem;
+    color: var(--text-faint);
+    margin-block-end: 0.6rem;
+}
+
+.empty-state h2 {
+    font-size: 1.2rem;
+    color: var(--text);
+}
+
+.empty-state p {
+    margin-block: 0.25rem 0 0;
+}
+
+/* 20. Utilities ============================================================= */
+
+.muted {
+    color: var(--text-muted);
+}
+
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    border: 0;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+    overflow: hidden;
+    white-space: nowrap;
+}
+
+/* 21. Keyframes ============================================================= */
+
+@keyframes rise-in {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: none;
+    }
+}
+
+@keyframes flash-in {
+    from {
+        opacity: 0;
+        transform: translateY(-8px);
+    }
+    to {
+        opacity: 1;
+        transform: none;
+    }
+}
+
+@keyframes heart-pop {
+    0% { transform: scale(0.4); }
+    55% { transform: scale(1.35); }
+    100% { transform: scale(1); }
+}
+
+@keyframes pulse-dot {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.25; }
+}
+
+@keyframes target-flash {
+    0%, 25% {
+        background: var(--accent-soft);
+        border-color: var(--accent);
+    }
+    100% {
+        background: var(--surface);
+        border-color: var(--border);
+    }
+}
+
+/* 22. Accessibility: motion ================================================= */
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        transition-delay: 0ms !important;
+    }
+    html {
+        scroll-behavior: auto;
+    }
+}
+
+/* 23. Small screens ========================================================== */
+
+@media (max-width: 640px) {
+    .nav {
+        row-gap: 0.3rem;
+    }
+
+    .nav-links {
+        margin-left: 0;
+    }
+
+    .page-head {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .pagination {
+        gap: 0.5rem;
+    }
+
+    .pagination .button {
+        flex: 1 1 auto;
+    }
+
+    .account-info {
+        grid-template-columns: 1fr;
+    }
+
+    .account-info dt {
+        margin-block-start: 0.6rem;
+        padding-block-start: 0;
+    }
+
+    .form-actions .button {
+        flex: 1 1 auto;
+    }
+}
+
+/* 24. Print ================================================================== */
+
+@media print {
+    .site-header,
+    .site-footer,
+    .skip-link,
+    .flash,
+    .like-form,
+    .pagination,
+    .form-actions,
+    .preview {
+        display: none !important;
+    }
+
+    body {
+        background: none;
+        color: #000;
+    }
+
+    a {
+        color: #000;
+    }
+
+    .post-card,
+    .post-full,
+    .comment {
+        box-shadow: none;
+        border-color: #999;
+    }
+}

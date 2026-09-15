@@ -1,0 +1,115 @@
+{{define "preview"}}
+<section class="preview" data-markdown-preview="{{.}}" hidden>
+    <h2 class="preview-heading">Live preview</h2>
+    <p class="field-hint">Approximate — the server renders the final, sanitized HTML.</p>
+    <div class="post-body preview-body"></div>
+</section>
+{{end}}
+
+{{define "page_post_new"}}
+<div class="page-head"><h1>Write a post</h1></div>
+<form class="card form" method="post" action="/posts" data-markdown-form>
+    <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+    {{if .FormError}}<p class="form-error" role="alert">{{.FormError}}</p>{{end}}
+    <div class="field">
+        <label for="post-title">Title</label>
+        <input id="post-title" type="text" name="title" value="{{.FormTitle}}" maxlength="120" required>
+        <p class="field-hint">Up to 120 characters.</p>
+    </div>
+    <div class="field">
+        <label for="post-content">Content <span class="label-soft">(Markdown)</span></label>
+        <textarea id="post-content" name="content" rows="14" maxlength="20000" required data-markdown-source="post-preview" placeholder="Write in Markdown. Formatting is rendered on the server after a safety check.">{{.FormContent}}</textarea>
+        <p class="field-hint">Up to 20,000 characters. Tables, code blocks, and the usual Markdown all work.</p>
+    </div>
+    {{template "preview" "post-preview"}}
+    <div class="form-actions">
+        <button type="submit" class="button button-primary">Publish post</button>
+        <a class="button button-quiet" href="/">Cancel</a>
+    </div>
+</form>
+{{end}}
+
+{{define "page_post_edit"}}
+<div class="page-head"><h1>Edit post</h1></div>
+<form class="card form" method="post" action="/posts/{{.PostID}}/edit" data-markdown-form>
+    <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+    {{if .FormError}}<p class="form-error" role="alert">{{.FormError}}</p>{{end}}
+    <div class="field">
+        <label for="post-title">Title</label>
+        <input id="post-title" type="text" name="title" value="{{.FormTitle}}" maxlength="120" required>
+    </div>
+    <div class="field">
+        <label for="post-content">Content <span class="label-soft">(Markdown)</span></label>
+        <textarea id="post-content" name="content" rows="14" maxlength="20000" required data-markdown-source="post-preview">{{.FormContent}}</textarea>
+        <p class="field-hint">Edited content is checked for harassment again before it is saved.</p>
+    </div>
+    {{template "preview" "post-preview"}}
+    <div class="form-actions">
+        <button type="submit" class="button button-primary">Save changes</button>
+        <a class="button button-quiet" href="/posts/{{.PostID}}">Cancel</a>
+    </div>
+</form>
+{{end}}
+
+{{define "comment_form"}}
+<form class="card form comment-form" method="post" action="/posts/{{.Post.ID}}/comments" data-markdown-form>
+    <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+    {{if .CommentError}}<p class="form-error" role="alert">{{.CommentError}}</p>{{end}}
+    <div class="field">
+        <label for="comment-content">Add a comment <span class="label-soft">(Markdown)</span></label>
+        <textarea id="comment-content" name="content" rows="5" maxlength="4000" required data-markdown-source="comment-preview" placeholder="Say something useful — or at least kind.">{{.CommentDraft}}</textarea>
+    </div>
+    {{template "preview" "comment-preview"}}
+    <div class="form-actions">
+        <button type="submit" class="button button-primary">Post comment</button>
+    </div>
+</form>
+{{end}}
+
+{{define "comment_delete_form"}}
+<form class="inline-form" method="post" action="/comments/{{.ID}}/delete" data-confirm="delete-comment">
+    <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+    <button type="submit" class="link-button link-danger">Delete</button>
+</form>
+{{end}}
+
+{{define "post_delete_form"}}
+<form class="inline-form" method="post" action="/posts/{{.Post.ID}}/delete" data-confirm="delete-post">
+    <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+    <button type="submit" class="link-button link-danger">Delete post</button>
+</form>
+{{end}}
+
+{{define "account_delete_form"}}
+<form class="account-delete-form" method="post" action="/settings/account/delete" data-confirm="delete-account">
+    <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+    {{if .FormError}}<p class="form-error" role="alert">{{.FormError}}</p>{{end}}
+    <div class="field">
+        <label for="confirm-delete">Type <strong>DELETE</strong> to confirm</label>
+        <input id="confirm-delete" type="text" name="confirm" autocomplete="off" spellcheck="false" placeholder="DELETE" required data-confirm-input>
+    </div>
+    <button type="submit" class="button button-danger">Permanently delete my account</button>
+    <p class="field-hint">You will be signed out immediately.</p>
+</form>
+{{end}}
+
+{{define "page_settings_profile"}}
+<div class="page-head">
+    <h1>Edit profile</h1>
+    <a class="button button-quiet" href="/settings">Back to settings</a>
+</div>
+<form class="card form" method="post" action="/settings/profile" data-markdown-form>
+    <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+    {{if .FormError}}<p class="form-error" role="alert">{{.FormError}}</p>{{end}}
+    <div class="field">
+        <label for="bio">Bio <span class="label-soft">(Markdown)</span></label>
+        <textarea id="bio" name="bio" rows="7" maxlength="2000" data-markdown-source="bio-preview" placeholder="A few lines about you, rendered as Markdown on your profile.">{{.FormBio}}</textarea>
+        <p class="field-hint">Up to 2,000 characters. Your display name, username, and avatar come from GitHub.</p>
+    </div>
+    {{template "preview" "bio-preview"}}
+    <div class="form-actions">
+        <button type="submit" class="button button-primary">Save bio</button>
+        <a class="button button-quiet" href="/users/{{.User.Username}}">View profile</a>
+    </div>
+</form>
+{{end}}

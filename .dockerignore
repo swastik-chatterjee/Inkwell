@@ -1,0 +1,13 @@
+.git
+.gitignore
+.dockerignore
+Dockerfile
+.env
+.env.*
+.env.example
+*.md
+migrations/
+tests/
+tmp/
+bin/
+dist/

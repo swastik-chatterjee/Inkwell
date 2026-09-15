@@ -1,0 +1,54 @@
+markdown-social/
+├── .env.example
+├── .gitignore
+├── .dockerignore
+├── CODE_OF_CONDUCT.md
+├── CONTRIBUTING.md
+├── Dockerfile
+├── LICENSE.md
+├── README.md
+├── THIRD_PARTY.md
+├── go.mod
+├── go.sum
+│
+├── cmd/
+│   └── web/
+│       └── main.go
+│
+├── internal/
+│   ├── auth/
+│   │   └── auth.go
+│   ├── config/
+│   │   └── config.go
+│   ├── database/
+│   │   └── database.go
+│   ├── handlers/
+│   │   └── handlers.go
+│   ├── middleware/
+│   │   └── middleware.go
+│   ├── markdown/
+│   │   └── markdown.go
+│   ├── models/
+│   │   └── models.go
+│   ├── moderation/
+│   │   └── moderation.go
+│   └── repository/
+│       └── repository.go
+│
+├── migrations/
+│   └── 001_initial.sql
+│
+├── web/
+│   ├── templates/
+│   │   ├── layout.html
+│   │   ├── pages.html
+│   │   └── forms.html
+│   │
+│   └── static/
+│       ├── app.js
+│       └── style.css
+│
+└── tests/
+    ├── application_test.go
+    ├── moderation_test.go
+    └── repository_test.go

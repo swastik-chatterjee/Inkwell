@@ -1,0 +1,26 @@
+# Secrets — never commit real environment files (.env.example IS tracked).
+.env
+.env.*
+!.env.example
+
+# Go build output and test artifacts.
+*.exe
+*.test
+*.out
+coverage.out
+coverage.*
+/bin/
+/dist/
+/tmp/
+
+# Editor and IDE metadata.
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS-specific files.
+.DS_Store
+Thumbs.db
+desktop.ini
