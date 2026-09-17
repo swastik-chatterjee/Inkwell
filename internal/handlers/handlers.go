@@ -8,6 +8,8 @@ package handlers
 import (
 	"bytes"
 	"context"
+	"encoding/json"
+	"encoding/xml"
 	"errors"
 	"fmt"
 	"html/template"
@@ -166,6 +168,16 @@ func (h *Handler) Routes() *http.ServeMux {
 	mux.HandleFunc("GET /auth/github/callback", h.GitHubCallback)
 	mux.HandleFunc("POST /logout", h.Logout)
 
+	// Operational and crawler endpoints. These are deliberately cheap (no
+	// session lookup, no CSRF cookie - see middleware.bypassesSessionAndCSRF)
+	// so a platform health check or a bot never competes with real users for
+	// a database connection, especially right after a cold start.
+	mux.HandleFunc("GET /healthz", h.Healthz)
+	mux.HandleFunc("GET /readyz", h.Readyz)
+	mux.HandleFunc("GET /robots.txt", h.Robots)
+	mux.HandleFunc("GET /sitemap.xml", h.Sitemap)
+	mux.HandleFunc("GET /favicon.ico", h.Favicon)
+
 	mux.HandleFunc("GET /posts/new", h.NewPostForm)
 	mux.HandleFunc("POST /posts", h.CreatePost)
 	mux.HandleFunc("GET /posts/{id}", h.ShowPost)
@@ -201,16 +213,141 @@ func (h *Handler) Routes() *http.ServeMux {
 }
 
 // ---------------------------------------------------------------------------
+// Health, readiness, and crawler endpoints
+// ---------------------------------------------------------------------------
+
+// readyzTimeout bounds the database ping so a slow/cold database cannot make
+// the readiness check itself hang; a platform polling this endpoint should
+// see a fast, definite answer either way.
+const readyzTimeout = 3 * time.Second
+
+// Healthz is a pure liveness check: it reports 200 the moment the process is
+// up and able to handle a request, without touching the database or any
+// external service. A platform's wake-up/health probe should prefer this
+// over "/", which requires a database round trip (the feed query) and can
+// therefore look "not ready" for longer than the process actually is.
+func (h *Handler) Healthz(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-store")
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write([]byte("ok"))
+}
+
+// Readyz additionally verifies the database is reachable, bounded by
+// readyzTimeout. Use this (rather than "/") wherever a platform needs to
+// confirm the application can actually serve real traffic, not just that the
+// process has started.
+func (h *Handler) Readyz(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), readyzTimeout)
+	defer cancel()
+
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-store")
+	if err := h.repo.Pool().Ping(ctx); err != nil {
+		h.log.Warn("readyz: database ping failed", "error", err)
+		w.WriteHeader(http.StatusServiceUnavailable)
+		_, _ = w.Write([]byte("database unavailable"))
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write([]byte("ok"))
+}
+
+// Robots serves a small, accurate robots.txt: public pages are crawlable,
+// authenticated-only and utility pages are not, and the sitemap is
+// referenced so crawlers can discover posts directly.
+func (h *Handler) Robots(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	w.Header().Set("Cache-Control", "public, max-age=3600")
+	fmt.Fprintf(w, "User-agent: *\n"+
+		"Allow: /\n"+
+		"Disallow: /posts/new\n"+
+		"Disallow: /*/edit\n"+
+		"Disallow: /settings\n"+
+		"Disallow: /login\n"+
+		"Disallow: /auth/\n"+
+		"Sitemap: %s/sitemap.xml\n", h.cfg.AppURL)
+}
+
+type sitemapURL struct {
+	Loc     string `xml:"loc"`
+	LastMod string `xml:"lastmod,omitempty"`
+}
+
+type sitemapURLSet struct {
+	XMLName xml.Name     `xml:"urlset"`
+	XMLNS   string       `xml:"xmlns,attr"`
+	URLs    []sitemapURL `xml:"url"`
+}
+
+// sitemapMaxPosts bounds the sitemap to the most recently published posts so
+// this handler stays a single, cheap, bounded query no matter how large the
+// site grows; older posts remain reachable through the feed's pagination and
+// through search engines following links from newer posts.
+const sitemapMaxPosts = 1000
+
+// Sitemap lists the public feed and every post (most recent first, capped at
+// sitemapMaxPosts) so search engines can discover content without crawling
+// paginated feed listings.
+func (h *Handler) Sitemap(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), readyzTimeout)
+	defer cancel()
+
+	posts, _, err := h.repo.ListPosts(ctx, 0, sitemapMaxPosts, 0)
+	if err != nil {
+		h.log.Error("sitemap: list posts failed", "error", err)
+		http.Error(w, "temporarily unavailable", http.StatusServiceUnavailable)
+		return
+	}
+
+	set := sitemapURLSet{XMLNS: "http://www.sitemaps.org/schemas/sitemap/0.9"}
+	set.URLs = append(set.URLs, sitemapURL{Loc: h.cfg.AppURL + "/"})
+	for _, p := range posts {
+		set.URLs = append(set.URLs, sitemapURL{
+			Loc:     fmt.Sprintf("%s/posts/%d", h.cfg.AppURL, p.ID),
+			LastMod: p.UpdatedAt.UTC().Format("2006-01-02"),
+		})
+	}
+
+	body, err := xml.MarshalIndent(set, "", "  ")
+	if err != nil {
+		h.log.Error("sitemap: encode failed", "error", err)
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/xml; charset=utf-8")
+	w.Header().Set("Cache-Control", "public, max-age=900")
+	_, _ = w.Write([]byte(xml.Header))
+	_, _ = w.Write(body)
+}
+
+// Favicon redirects the conventional /favicon.ico request to the real,
+// versioned static asset so browsers and crawlers that request it directly
+// (rather than reading the <link rel="icon"> in the page head) still get an
+// icon instead of a 404.
+func (h *Handler) Favicon(w http.ResponseWriter, r *http.Request) {
+	http.Redirect(w, r, "/static/favicon.svg", http.StatusFound)
+}
+
+// ---------------------------------------------------------------------------
 // View models
 // ---------------------------------------------------------------------------
 
 type baseData struct {
-	Title     string
-	User      *models.User
-	LoggedIn  bool
-	CSRFToken string
-	Flash     string
-	FlashKind string
+	Title       string
+	User        *models.User
+	LoggedIn    bool
+	CSRFToken   string
+	Flash       string
+	FlashKind   string
+	Description string
+	Canonical   string
+	NoIndex     bool
+	// JSONLD is pre-encoded structured data for this page (a single
+	// <script type="application/ld+json"> body), or empty when a page has
+	// nothing worth describing structurally. Building it with jsonLD (which
+	// escapes "<", ">", "&") keeps it safe to emit as raw HTML.
+	JSONLD template.HTML
 }
 
 type paginationData struct {
@@ -295,18 +432,49 @@ func (h *Handler) render(w http.ResponseWriter, status int, page string, data an
 	_, _ = w.Write(buf.Bytes())
 }
 
+// defaultDescription is used by any page that does not set a more specific
+// one (see newView).
+const defaultDescription = "Inkwell is a small, Markdown-first social network: write posts and comments in Markdown, rendered and safety-checked on the server."
+
 // newView builds the common page data, consuming any pending flash message.
+// It defaults Description to defaultDescription and Canonical to this
+// request's own path on the app's public URL; callers with something more
+// specific to say (a post's own excerpt, a private/utility page that should
+// not be indexed) overwrite those fields on the returned value before
+// rendering.
+//
+// The canonical URL intentionally drops the query string: for the paginated
+// feed and profile pages this makes page 2+ canonicalize to page 1 rather
+// than being indexed as a near-duplicate listing, which is the usual advice
+// for simple offset pagination.
 func (h *Handler) newView(w http.ResponseWriter, r *http.Request, title string) baseData {
 	user := middleware.UserFrom(r.Context())
 	msg, kind := h.consumeFlash(w, r)
 	return baseData{
-		Title:     title,
-		User:      user,
-		LoggedIn:  user != nil,
-		CSRFToken: middleware.CSRFTokenFrom(r.Context()),
-		Flash:     msg,
-		FlashKind: kind,
+		Title:       title,
+		User:        user,
+		LoggedIn:    user != nil,
+		CSRFToken:   middleware.CSRFTokenFrom(r.Context()),
+		Flash:       msg,
+		FlashKind:   kind,
+		Description: defaultDescription,
+		Canonical:   h.cfg.AppURL + r.URL.Path,
 	}
+}
+
+// jsonLD encodes v as a single <script type="application/ld+json"> element.
+// json.Marshal never emits raw "<", ">", or "&" by default for string
+// values containing them (it escapes to \u003c etc.) except inside already-
+// encoded HTML fields, which none of our structured data includes; the
+// extra replacement below is a defense-in-depth guard against "</script>"
+// ever prematurely closing the tag, not a correctness requirement.
+func jsonLD(v any) (template.HTML, error) {
+	body, err := json.Marshal(v)
+	if err != nil {
+		return "", err
+	}
+	safe := strings.NewReplacer("<", `\u003c`, ">", `\u003e`, "&", `\u0026`).Replace(string(body))
+	return template.HTML(`<script type="application/ld+json">` + safe + `</script>`), nil
 }
 
 // redirect issues a 303 See Other (the PRG status after a POST).
@@ -352,8 +520,10 @@ func (h *Handler) clearFlash(w http.ResponseWriter) {
 }
 
 func (h *Handler) notFound(w http.ResponseWriter, r *http.Request) {
+	data := h.newView(w, r, "Page not found")
+	data.NoIndex = true
 	h.render(w, http.StatusNotFound, "error", errorView{
-		baseData: h.newView(w, r, "Page not found"),
+		baseData: data,
 		Status:   http.StatusNotFound,
 		Message:  "The page you requested does not exist or may have been removed.",
 	})
@@ -364,8 +534,10 @@ func (h *Handler) NotFound(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) forbidden(w http.ResponseWriter, r *http.Request, message string) {
+	data := h.newView(w, r, "Not allowed")
+	data.NoIndex = true
 	h.render(w, http.StatusForbidden, "error", errorView{
-		baseData: h.newView(w, r, "Not allowed"),
+		baseData: data,
 		Status:   http.StatusForbidden,
 		Message:  message,
 	})
@@ -375,8 +547,10 @@ func (h *Handler) serverError(w http.ResponseWriter, r *http.Request, err error)
 	// The underlying error (SQL, OAuth, moderation detail) is logged for
 	// operators, never shown to users.
 	h.log.Error("internal error", "method", r.Method, "path", r.URL.Path, "error", err)
+	data := h.newView(w, r, "Something went wrong")
+	data.NoIndex = true
 	h.render(w, http.StatusInternalServerError, "error", errorView{
-		baseData: h.newView(w, r, "Something went wrong"),
+		baseData: data,
 		Status:   http.StatusInternalServerError,
 		Message:  "An unexpected error occurred. Please try again in a moment.",
 	})
@@ -464,8 +638,23 @@ func (h *Handler) Home(w http.ResponseWriter, r *http.Request) {
 		posts[i].ViewerIsAuthor = viewer != nil && posts[i].AuthorID == viewer.ID
 	}
 
+	data := h.newView(w, r, "Feed")
+	data.Canonical = h.cfg.AppURL + "/" // page 2+ still canonicalizes to the feed root
+	if page == 1 {
+		siteLD, err := jsonLD(map[string]any{
+			"@context": "https://schema.org",
+			"@type":    "WebSite",
+			"name":     "Inkwell",
+			"url":      h.cfg.AppURL + "/",
+		})
+		if err != nil {
+			h.log.Error("home: encode structured data failed", "error", err)
+		} else {
+			data.JSONLD = siteLD
+		}
+	}
 	h.render(w, http.StatusOK, "home", homeView{
-		baseData:   h.newView(w, r, "Feed"),
+		baseData:   data,
 		Posts:      posts,
 		Pagination: paginationData{Page: page, Total: totalPages(int(total)), Base: "/?"},
 	})
@@ -476,7 +665,9 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		h.redirect(w, r, "/")
 		return
 	}
-	h.render(w, http.StatusOK, "login", h.newView(w, r, "Sign in"))
+	data := h.newView(w, r, "Sign in")
+	data.NoIndex = true
+	h.render(w, http.StatusOK, "login", data)
 }
 
 func (h *Handler) GitHubLogin(w http.ResponseWriter, r *http.Request) {
@@ -548,11 +739,58 @@ func (h *Handler) loadPostView(w http.ResponseWriter, r *http.Request, postID in
 		comments[i].ViewerIsAuthor = viewer != nil && comments[i].AuthorID == viewer.ID
 	}
 
+	data := h.newView(w, r, post.Title)
+	data.Description = excerpt(post.ContentMarkdown, 160)
+	postLD, err := jsonLD(map[string]any{
+		"@context":      "https://schema.org",
+		"@type":         "BlogPosting",
+		"headline":      post.Title,
+		"datePublished": post.CreatedAt.UTC().Format(time.RFC3339),
+		"dateModified":  post.UpdatedAt.UTC().Format(time.RFC3339),
+		"author": map[string]any{
+			"@type": "Person",
+			"name":  post.AuthorDisplayName,
+			"url":   h.cfg.AppURL + "/users/" + post.AuthorUsername,
+		},
+		"mainEntityOfPage": data.Canonical,
+	})
+	if err != nil {
+		h.log.Error("post: encode structured data failed", "error", err)
+	} else {
+		data.JSONLD = postLD
+	}
+
 	return &postView{
-		baseData: h.newView(w, r, post.Title),
+		baseData: data,
 		Post:     post,
 		Comments: comments,
 	}
+}
+
+// excerpt turns Markdown source into a short, plain-text summary suitable
+// for a meta description: it strips the most common Markdown syntax
+// characters, collapses whitespace, and truncates on a word boundary. It is
+// intentionally approximate (this is metadata for search results, not
+// rendered content) - the server's real Markdown renderer is what produces
+// the actual page.
+func excerpt(markdownSource string, maxLen int) string {
+	replacer := strings.NewReplacer(
+		"#", "", "*", "", "_", "", "`", "", ">", "", "~", "",
+		"\r\n", " ", "\n", " ", "\t", " ",
+	)
+	text := strings.Join(strings.Fields(replacer.Replace(markdownSource)), " ")
+	if text == "" {
+		return defaultDescription
+	}
+	if utf8.RuneCountInString(text) <= maxLen {
+		return text
+	}
+	runes := []rune(text)
+	cut := runes[:maxLen]
+	if i := strings.LastIndexByte(string(cut), ' '); i > 0 {
+		cut = []rune(string(cut)[:i])
+	}
+	return strings.TrimRight(string(cut), ".,;:!?") + "\u2026"
 }
 
 func (h *Handler) Profile(w http.ResponseWriter, r *http.Request) {
@@ -586,8 +824,11 @@ func (h *Handler) Profile(w http.ResponseWriter, r *http.Request) {
 		posts[i].ViewerIsAuthor = viewer != nil && posts[i].AuthorID == viewer.ID
 	}
 
+	data := h.newView(w, r, profile.DisplayName)
+	data.Description = fmt.Sprintf("Posts by %s (@%s) on Inkwell.", profile.DisplayName, profile.Username)
+	data.Canonical = h.cfg.AppURL + "/users/" + url.PathEscape(profile.Username)
 	h.render(w, http.StatusOK, "profile", profileView{
-		baseData: h.newView(w, r, profile.DisplayName),
+		baseData: data,
 		Profile:  profile,
 		IsOwner:  viewer != nil && viewer.ID == profile.ID,
 		Posts:    posts,
