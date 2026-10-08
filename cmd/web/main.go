@@ -87,6 +87,7 @@ func run() error {
         Log:         logger,
         TemplateDir: "web/templates",
         StaticDir:   "web/static",
+        DB:          pool,
     })
     if err != nil {
         return fmt.Errorf("initialize handlers: %w", err)
